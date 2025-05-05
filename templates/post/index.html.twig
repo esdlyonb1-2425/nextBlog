@@ -4,14 +4,17 @@
 
 {% block body %}
 
-    {% for post in posts %}
+{{ form(searchForm) }}
+{{ form(userForm) }}
+    {% for post in pagination %}
         <div class="card" style="width:90%">
             <div class="card-title"><h3>{{ post.title }}</h3></div>
             <div class="card-body">
                 <div class="d-flex-justify-content-around">
+                    {% if post.images|length > 0 %}
                         <img src="{{ vich_uploader_asset(post.images[0],"imageFile") | imagine_filter('postshow') }}" alt="">
 
-
+                    {% endif %}
 
                 </div>
                 <p>Author : {{ post.author.email }}</p>
@@ -31,4 +34,7 @@
 
 
     {% endfor %}
+    <div class="navigation">
+    {{ knp_pagination_render(pagination,"@KnpPaginator/Pagination/bootstrap_v5_pagination.html.twig") }}
+</div>
 {% endblock %}

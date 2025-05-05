@@ -8,8 +8,11 @@ use App\Entity\Post;
 use App\Form\CommentForm;
 use App\Form\ImageForm;
 use App\Form\PostForm;
+use App\Form\PostSearchForm;
+use App\Form\UserSearchForm;
 use App\Repository\PostRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Knp\Component\Pager\PaginatorInterface;
 use Liip\ImagineBundle\Form\Type\ImageType;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -19,10 +22,33 @@ use Symfony\Component\Routing\Attribute\Route;
 final class PostController extends AbstractController
 {
     #[Route('/', name: 'app_post')]
-    public function index(PostRepository $repository): Response
+    #[Route('/myposts', name: 'app_myposts')]
+    public function index( PaginatorInterface $paginator,PostRepository $repository, Request $request): Response
     {
+
+
+        switch ($request->attributes->get('_route')) {
+            case 'app_myposts':
+                if(!$this->getUser()){return $this->redirectToRoute('app_login');}
+                $posts = $repository->findBy(['author'=> $this->getUser()]);
+                break;
+            case 'app_post':
+                $posts = $repository->findAll();
+                break;
+        }
+        $pagination = $paginator->paginate(
+            $repository->findAll(), /* query NOT result */
+            $request->query->getInt('page', 1), /* page number */
+            2 /* limit per page */
+        );
+
+        $userForm = $this->createForm(UserSearchForm::class);
+        $searchForm = $this->createForm(PostSearchForm::class);
         return $this->render('post/index.html.twig', [
-            'posts' => $repository->findAll(),
+            'posts' => $posts,
+            'searchForm' => $searchForm->createView(),
+            'userForm' => $userForm->createView(),
+            'pagination'=>$pagination
         ]);
     }
     #[Route('/post/show/{id}', name: 'app_post_show', priority: -1)]
@@ -49,6 +75,7 @@ public function create(Request $request, EntityManagerInterface $manager): Respo
             $post->setCreatedAt(new \DateTime());
             $manager->persist($post);
             $manager->flush();
+            $this->addFlash('success', 'Post created!');
             return $this->redirectToRoute('app_post_images', ['id' => $post->getId()]);
         }
         return $this->render('post/create.html.twig', [
@@ -74,6 +101,7 @@ public function create(Request $request, EntityManagerInterface $manager): Respo
             $manager->flush();
             return $this->redirectToRoute('app_post_images', ['id' => $post->getId()]);
         }
+
         return $this->render('post/createImage.html.twig', [
             'form' => $form->createView(),
             'post'=>$post,
